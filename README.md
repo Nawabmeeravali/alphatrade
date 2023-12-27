@@ -43,7 +43,7 @@ Thanks to [krishnavelu](https://github.com/krishnavelu/).
 This module is installed via pip:
 
 ```
-pip install git+https://github.com/algo2t/alphatrade.git
+pip install git+https://github.com/Nawabmeeravali/alphatrade.git
 ```
 
 It can also be installed from [pypi](https://pypi.org/project/alphatrade/1.0.0/)  
