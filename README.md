@@ -1,4 +1,27 @@
 # Python APIs for SAS Online Alpha Trade Web Platform
+
+# MAJOR CHANGES : NEW VERSION 1.0.0
+
+## API endpoints are changed to match the new ones, bugs expected
+
+1. Removed check for enabled exchanges, you can now download or search symbols from MCX as well if it is not enabled
+2. TOTP SECRET or TOTP both can be given as argument while creating AlphaTrade object (if it is 6 digits it will conside TOTP else TOTP SECRET)
+3. Added new search function to search scrips which will return json for found scrips, you need to process it further
+4. More functions to come.
+5. Check whether streaming websocket is working or not
+6. The `examples` folder is removed and examples are renamed and kept in root directory for ease of development
+
+# STEPS to work
+
+1. Clone the repo locally - `git clone https://github.com/algo2t/alphatrade.git` 
+2. Create a virtualenv - `python -m pip install virtualenv` and then `python -m virtualenv venv` and activate the `venv` environment.
+3. Install dev-requirement.txt - `python -m pip install -r dev-requirements.txt` - this is to ensure `setuptools==57.5.0` is installed. There is a bug with `protlib`, target is to get reed of `protlib` in future
+4. Install requirement.txt - `python -m pip install -r requirement.txt`
+5. Create the `config.py` file in root of cloned repo with `login_id`, `password` and `TOTP` SECRET, you can add the `access_token.txt` if you want to use existing `access_token`.
+6. Try the examples `python zlogin_example.py`, `python zexample_sas_login.py`, `python zhistorical_data.py` and `python zstreaming_data.py`
+7. Expecting issues with the streaming data !!! :P
+
+
 # NOTE:: This is Unofficial python module, don't ask SAS support team for help, use it AS-IS
 
 The Python APIs for communicating with the SAS Online Alpha Trade Web Platform.
@@ -23,7 +46,7 @@ This module is installed via pip:
 pip install git+https://github.com/algo2t/alphatrade.git
 ```
 
-It can also be installed from [pypi](https://pypi.org/project/alphatrade/0.1.2/)  
+It can also be installed from [pypi](https://pypi.org/project/alphatrade/1.0.0/)  
 
 ```
 pip install alphatrade
@@ -40,12 +63,16 @@ pip --no-cache-dir install --upgrade alphatrade
 
 Python 3.x
 
+## Make sure to install `setuptools==57.5.0` for `protlib==1.5.0` to work properly
+
 Also, you need the following modules:
 
-- `protlib`
-- `websocket_client`
-- `requests`
-- `pandas`
+- `setuptools==57.5.0`
+- `protlib==1.5.0`
+- `websocket-client==1.6.1`
+- `requests==2.31.0`
+- `pandas==2.0.3`
+- `pyotp==2.8.0`
 
 The modules can also be installed using `pip`
 
@@ -64,7 +91,7 @@ With an access token, you can instantiate an AlphaTrade object again. Ideally yo
 ### REST Documentation
 
 The original REST API that this SDK is based on is available online.
-[Alice Blue API REST documentation](http://antplus.aliceblueonline.com/#introduction)
+[Tradelabs API documentation](http://primusapi.tradelab.in/webapi/)
 
 ## Using the API
 
@@ -88,9 +115,9 @@ from alphatrade import *
 2. Create `config.py` file  
 Always keep credentials in a separate file
 ```python
-login_id = "RR249"
-password = "SAS@249"
-twofa = "rr"
+login_id = "XXXXX"
+password = "XXXXXXXX"
+Totp = 'XXXXXXXXXXXXXXXX'
 
 try:
     access_token = open('access_token.txt', 'r').read().rstrip()
@@ -106,15 +133,47 @@ import config
 
 ### Create AlphaTrade Object
 
-1. Create `AlphaTrade` object with your `login_id`, `password`, `2FA` and/or `access_token`.
+1. Create `AlphaTrade` object with your `login_id`, `password`, `TOTP` / `TOTP_SECRET` and/or `access_token`.
 
-Use `config` object to get `login_id`, `password`, `twofa` and `access_token`.  
+Use `config` object to get `login_id`, `password`, `TOTP` and `access_token`.  
 
 ```python
 from alphatrade import AlphaTrade
 import config
-sas = AlphaTrade(login_id=config.login_id, password=config.password, twofa=config.twofa, access_token=config.access_token)
+import pyotp
+Totp = config.Totp
+pin = pyotp.TOTP(Totp).now()
+totp = f"{int(pin):06d}" if len(pin) <=5 else pin   
+sas = AlphaTrade(login_id=config.login_id, password=config.password, twofa=totp, access_token=config.access_token)
+
 ```
+
+## OR
+
+```python
+## filename config.py
+
+login_id = "RR24XX"
+password = "SuperSecretPassword!!!"
+TOTP_SECRET = 'YOURTOTPSECRETEXTERNALAUTH'
+
+try:
+    access_token = open('access_token.txt', 'r').read().rstrip()
+except Exception as e:
+    print(f'Exception occurred :: {e}')
+    access_token = None
+
+```
+
+
+```python
+from alphatrade import AlphaTrade
+import config
+import pyotp
+sas = AlphaTrade(login_id=config.login_id, password=config.password, twofa=config.TOTP_SECRET, access_token=config.access_token)
+
+```
+
 
 2. You can run commands here to check your connectivity
 
@@ -132,7 +191,7 @@ Getting master contracts allow you to search for instruments by symbol name and 
 Master contracts are stored as an OrderedDict by token number and by symbol name. Whenever you get a trade update, order update, or quote update, the library will check if master contracts are loaded. If they are, it will attach the instrument object directly to the update. By default all master contracts of all enabled exchanges in your personal profile will be downloaded. i.e. If your profile contains the following as enabled exchanges `['NSE', 'BSE', 'CDS', 'MCX', NFO']` all contract notes of all exchanges will be downloaded by default. If you feel it takes too much time to download all exchange, or if you don‘t need all exchanges to be downloaded, you can specify which exchange to download contract notes while creating the AlphaTrade object.
 
 ```python
-sas = AlphaTrade(login_id=config.login_id, password=config.password, twofa=config.twofa, access_token=config.access_token, master_contracts_to_download=['NSE', 'BSE'])
+sas = AlphaTrade(login_id=config.login_id, password=config.password, twofa=totp, access_token=config.access_token, master_contracts_to_download=['NSE', 'BSE'])
 ```
 
 This will reduce a few milliseconds in object creation time of AlphaTrade object.
@@ -213,7 +272,7 @@ You can subscribe any one type of quote update for a given scrip. Using the `Liv
 - `LiveFeedType.SNAPQUOTE`
 - `LiveFeedType.FULL_SNAPQUOTE`
 
-Please refer to the original documentation [here](http://antplus.aliceblueonline.com/#marketdata) for more details of different types of quote update.
+Please refer to the original documentation [here](http://primusapi.tradelab.in/webapi/) for more details of different types of quote update.
 
 #### Subscribe to a live feed
 
@@ -691,7 +750,7 @@ Product types indicate the complexity of the order you want to place. Valid prod
 
 ## Working with examples
 
-[Here](https://github.com/algo2t/alphatrade/tree/main/examples), examples directory there are 3 files `sas_login_eg.py`, `streaming_data.py` and `stop.txt`
+[Here](https://github.com/algo2t/alphatrade), examples directory there are 3 files `zlogin_example.py`, `zstreaming_data.py` and `stop.txt`
 
 ### Steps
 
@@ -699,10 +758,9 @@ Product types indicate the complexity of the order you want to place. Valid prod
 - Copy the examples directory to any location where you want to write your code
 - Install the `alphatrade` module using `pip` => `python -m pip install https://github.com/algo2t/alphatrade.git`
 - Open the examples directory in your favorite editor, in our case it is [VSCodium](https://vscodium.com/)
-- Open the `sas_login_eg.py` file in the editor
+- Open the `zlogin_example.py` file in the editor
 - Now, create `config.py` file as per instructions given below and in the above file
-- Provide correct login credentials like login_id, password and twofa
-- twofa must be same for all questions under two factor authentication
+- Provide correct login credentials like login_id, password and 16 digit totp code (find below qr code)
 - This is generally set from the homepage of alpha web trading platform [here](https://alpha.sasonline.in/)
 - Click on `FORGET PASSWORD?` => Select `Reset 2FA` radio button.  ![image](https://raw.githubusercontent.com/algo2t/alphatrade/main/snaps/forget_password.png)
 - Enter the CLIENT ID (LOGIN_ID), EMAIL ID and PAN NUMBER, click on `RESET` button.  ![image](https://raw.githubusercontent.com/algo2t/alphatrade/main/snaps/reset_two_fa.png)
@@ -711,29 +769,28 @@ Product types indicate the complexity of the order you want to place. Valid prod
 
 `config.py`
 ```python
-login_id = "RR249"
-password = "SAS@249"
-twofa = "rr"
+login_id = "XXXXX"
+password = "XXXXXXXX"
+Totp = 'XXXXXXXXXXXXXXXX'
 
 try:
     access_token = open('access_token.txt', 'r').read().rstrip()
 except Exception as e:
     print('Exception occurred :: {}'.format(e))
     access_token = None
-
 ```
 
 ## Example strategy using alpha trade API
 
-[Here](https://github.com/algo2t/alphatrade/blob/main/examples/streaming_data.py) is an example moving average strategy using alpha trade web API.
+[Here](https://github.com/algo2t/alphatrade/blob/main/zstreaming_data.py) is an example moving average strategy using alpha trade web API.
 This strategy generates a buy signal when 5-EMA > 20-EMA (golden cross) or a sell signal when 5-EMA < 20-EMA (death cross).
 
 ## Example for getting historical and intraday candles data
 
-[Here](https://github.com/algo2t/alphatrade/blob/main/examples/historical_data.py) is an example for getting historical data using alpha trade web API.
+[Here](https://github.com/algo2t/alphatrade/blob/main/zhistorical_data.py) is an example for getting historical data using alpha trade web API.
 
 For historical candles data `start_time` and `end_time` must be provided in format as shown below.
-It can also be provided as `timedelta`. Check the script `historical_data.py` in examples.
+It can also be provided as `timedelta`. Check the script `zhistorical_data.py` in examples.
 
 ```python
 from datetime import datetime, timedelta
