@@ -207,6 +207,7 @@ class AlphaTrade(object):
             pin = pyotp.TOTP(twofa).now()
             twofa = f"{int(pin):06d}" if len(pin) <= 5 else pin
 
+        self.__client_id = 2000;
         self.__access_token = access_token
         self.__login_id = login_id
         self.__password = password
@@ -631,6 +632,10 @@ class AlphaTrade(object):
 
         prod_type = self.__get_product_type_str(
             product_type, instrument.exchange)
+        order_side = "BUY"
+        if(transaction_type == TransactionType.Sell):
+            order_side = "SELL"
+
         # construct order object after all required parameters are met
         order = {'exchange': instrument.exchange,
                  'order_type': order_type.value,
@@ -640,10 +645,13 @@ class AlphaTrade(object):
                  'price': price,
                  'transaction_type': transaction_type.value,
                  'trigger_price': trigger_price,
+                 "order_side": order_side,
                  'validity': 'DAY',
                  'product': prod_type,
                  'source': 'web',
+                 'user_order_id': self.__client_id,
                  'order_tag': order_tag}
+        self.__client_id += 1
 
         if stop_loss is not None:
             if isinstance(stop_loss, float):
